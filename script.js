@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- DYNAMIC DATA STORE (ENGLISH) ---
@@ -5,10 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
         groups: [{
             name: "Group Alpha Standings",
             players: [
-                { rank: 1, name: 'Cipher', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 2, name: 'libero', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 3, name: 'Thiago', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 4, name: 'ᴰᵃʳᵏSaidh', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 }
+                { rank: 0, name: 'Cipher', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'libero', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'Thiago', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'ᴰᵃʳᵏSaidh', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 }
             ],
             matches: [
                 { p1: 'Cipher', s1: 0, p2: 'libero', s2: 0 },
@@ -71,10 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
         groups: [{
             name: "グループ・アルファ 順位表",
             players: [
-                { rank: 1, name: 'Cipher', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 2, name: 'libero', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 3, name: 'Thiago', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 },
-                { rank: 4, name: 'ᴰᵃʳᵏSaidh', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0 }
+                { rank: 0, name: 'Cipher', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'libero', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'Thiago', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 },
+                { rank: 0, name: 'ᴰᵃʳᵏSaidh', mp: 0, w: 0, d: 0, l: 0, diff: 0, pts: 0, sf: 0 }
             ],
             matches: [
                 { p1: 'Cipher', s1: 0, p2: 'libero', s2: 0 },
@@ -322,6 +323,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const langButtons = document.querySelectorAll('.lang-btn');
     const backToTopBtn = document.getElementById('back-to-top-btn');
 
+    // --- LOGIC FOR RANKING CALCULATION ---
+
+    /**
+     * Calculates and sorts the standings for a single group based on match results.
+     * @param {object} group - The group object from tournamentData.
+     */
+    function calculateGroupStandings(group) {
+        // 1. Reset all player stats to zero before recalculating
+        group.players.forEach(p => {
+            p.mp = 0; p.w = 0; p.d = 0; p.l = 0;
+            p.diff = 0; p.pts = 0; p.sf = 0;
+        });
+
+        // 2. Iterate through each match to tally stats
+        group.matches.forEach(match => {
+            const p1 = group.players.find(p => p.name === match.p1);
+            const p2 = group.players.find(p => p.name === match.p2);
+
+            // If players not found or it's a placeholder match, skip
+            if (!p1 || !p2 || p1.name === '-') return;
+
+            // Update matches played
+            p1.mp++;
+            p2.mp++;
+
+            // Update scores for and difference
+            p1.sf += match.s1;
+            p2.sf += match.s2;
+            p1.diff += (match.s1 - match.s2);
+            p2.diff += (match.s2 - match.s1);
+
+            // Update win/draw/loss and points
+            if (match.s1 > match.s2) { // p1 wins
+                p1.w++;
+                p1.pts += 3;
+                p2.l++;
+            } else if (match.s2 > match.s1) { // p2 wins
+                p2.w++;
+                p2.pts += 3;
+                p1.l++;
+            } else { // draw
+                p1.d++;
+                p1.pts += 1;
+                p2.d++;
+                p2.pts += 1;
+            }
+        });
+
+        // 3. Sort players based on ranking criteria
+        group.players.sort((a, b) => {
+            // Primary: Points (descending)
+            if (b.pts !== a.pts) {
+                return b.pts - a.pts;
+            }
+            // Tie-breaker 1: Score Difference (descending)
+            if (b.diff !== a.diff) {
+                return b.diff - a.diff;
+            }
+            // Tie-breaker 2: Scores For (descending)
+            return b.sf - a.sf;
+        });
+
+        // 4. Update the rank property based on the sorted order
+        group.players.forEach((player, index) => {
+            player.rank = index + 1;
+        });
+    }
+    
     // --- DYNAMIC CONTENT RENDERERS ---
 
     /**
@@ -332,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function createLeagueTableHTML(group, isJp = false) {
         const headers = isJp ?
-            ['順位', 'プレイヤー', '試合', '勝', '描く', '敗', '+/-', 'Pt'] :
+            ['順位', 'プレイヤー', '試合', '勝', '分', '敗', '+/-', 'Pt'] :
             ['Rank', 'Player', 'MP', 'W', 'D', 'L', '+/-', 'Pts'];
 
         const playerRows = group.players.map(p => `
@@ -343,8 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${p.w}</td>
                 <td>${p.d}</td>
                 <td>${p.l}</td>
-                <td>${p.diff}</td>
-                <td>${p.pts}</td>
+                <td>${p.diff > 0 ? '+' : ''}${p.diff}</td>
+                <td><b>${p.pts}</b></td>
             </tr>
         `).join('');
 
@@ -552,9 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update all UI text elements
         updateUIText();
+        
+        // Load the default page content ('about'), which will be re-rendered
+        // correctly after the nav link is clicked.
+        document.querySelector('.nav-link[data-page="about"]').click();
 
-        // Load the default page content ('about')
-        switchContent('about');
 
         // Update the clock immediately and then every second
         updateClock();
@@ -569,6 +640,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- EVENT LISTENERS & INITIALIZATION ---
+
+    // Calculate rankings for all groups as soon as the script loads
+    tournamentDataEN.groups.forEach(calculateGroupStandings);
+    tournamentDataJP.groups.forEach(calculateGroupStandings);
 
     // Set up language selection button clicks
     langButtons.forEach(button => {
